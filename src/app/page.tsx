@@ -35,7 +35,8 @@ export default function Home() {
   const [minScore, setMinScore] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(1000);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRefCamera = useRef<HTMLInputElement>(null);
+  const fileInputRefUpload = useRef<HTMLInputElement>(null);
 
   const handleSortToggle = (field: SortField) => {
     if (sortField === field) {
@@ -162,40 +163,68 @@ export default function Home() {
       </header>
 
       <section className="flex-1 flex flex-col gap-6 relative z-10">
-        <motion.button
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isAnalyzing}
-          className={cn(
-            "relative overflow-hidden group w-full p-8 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center transition-all duration-500",
-            isAnalyzing ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10 hover:border-gold/30 active:scale-[0.98]"
-          )}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          
-          {isAnalyzing ? (
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-              className="relative"
-            >
-              <ScanLine className="w-12 h-12 text-gold opacity-80" strokeWidth={1} />
-            </motion.div>
-          ) : (
-            <Camera className="w-12 h-12 text-white/60 group-hover:text-gold transition-colors duration-500" strokeWidth={1} />
-          )}
-          <span className="mt-5 font-serif text-lg tracking-wide text-white/80 group-hover:text-white transition-colors duration-500">
-            {isAnalyzing ? "Extracting..." : "Scan Menu"}
-          </span>
-        </motion.button>
+        <div className="flex gap-3 w-full">
+          <motion.button
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            onClick={() => fileInputRefCamera.current?.click()}
+            disabled={isAnalyzing}
+            className={cn(
+              "relative overflow-hidden group flex-1 p-6 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center transition-all duration-500",
+              isAnalyzing ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10 hover:border-gold/30 active:scale-[0.98]"
+            )}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            {isAnalyzing ? (
+              <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                className="relative"
+              >
+                <ScanLine className="w-10 h-10 text-gold opacity-80" strokeWidth={1} />
+              </motion.div>
+            ) : (
+              <Camera className="w-10 h-10 text-white/60 group-hover:text-gold transition-colors duration-500" strokeWidth={1} />
+            )}
+            <span className="mt-4 font-serif text-base tracking-wide text-white/80 group-hover:text-white transition-colors duration-500">
+              Camera
+            </span>
+          </motion.button>
+
+          <motion.button
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            onClick={() => fileInputRefUpload.current?.click()}
+            disabled={isAnalyzing}
+            className={cn(
+              "relative overflow-hidden group flex-1 p-6 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center transition-all duration-500",
+              isAnalyzing ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10 hover:border-gold/30 active:scale-[0.98]"
+            )}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-white/60 group-hover:text-gold transition-colors duration-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            <span className="mt-4 font-serif text-base tracking-wide text-white/80 group-hover:text-white transition-colors duration-500">
+              Upload
+            </span>
+          </motion.button>
+        </div>
 
         <input
-          ref={fileInputRef}
+          ref={fileInputRefCamera}
           type="file"
           accept="image/*"
           capture="environment"
+          className="hidden"
+          onChange={handleUpload}
+        />
+        
+        <input
+          ref={fileInputRefUpload}
+          type="file"
+          accept="image/*"
           className="hidden"
           onChange={handleUpload}
         />

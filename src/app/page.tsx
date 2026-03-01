@@ -41,10 +41,19 @@ export default function Home() {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Failed to analyze menu");
+      const data = await response.json();
 
-      const { wines } = await response.json();
+      if (!response.ok) {
+        throw new Error(data.details || data.error || "Failed to analyze menu");
+      }
+
+      const { wines } = data;
       
+      if (!wines || wines.length === 0) {
+        setError("No wines detected in the image. Try a clearer photo.");
+        return;
+      }
+
       for (const wineName of wines) {
         await new Promise((r) => setTimeout(r, 600)); 
         
@@ -61,9 +70,9 @@ export default function Home() {
         
         setResults((prev) => [...prev, wine]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Analysis failed. Ensure the image is clear and try again.");
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -71,8 +80,9 @@ export default function Home() {
 
   return (
     <main className="max-w-md mx-auto min-h-[100dvh] p-6 flex flex-col relative overflow-hidden bg-black selection:bg-gold/30">
+      {/* Build Verification: v1.1.0 */}
       {/* Background glow effects */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full aspect-square bg-wine-900/30 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full aspect-square bg-wine-900/40 blur-[140px] rounded-full pointer-events-none" />
 
       <header className="py-12 text-center relative z-10 flex flex-col items-center">
         <motion.div 

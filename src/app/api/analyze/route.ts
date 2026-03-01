@@ -15,14 +15,17 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
+    });
 
     const prompt = `
       Extract a list of specific wine names from this menu image. 
-      Only include the wine names (and vintage years if available). 
-      Format the response as a JSON array of strings. 
-      Example: ["Silver Oak Alexander Valley Cabernet 2018", "Jordan Cabernet Sauvignon 2019"].
-      Do not include any other text in your response.
+      Return a JSON object with a key "wines" containing an array of strings.
+      Example: {"wines": ["Silver Oak Alexander Valley Cabernet 2018", "Jordan Cabernet Sauvignon 2019"]}
     `;
 
     const result = await model.generateContent([
@@ -36,13 +39,15 @@ export async function POST(req: NextRequest) {
     ]);
 
     const text = result.response.text();
-    // Clean potential markdown from Gemini response
-    const cleanJson = text.replace(/```json|```/gi, "").trim();
-    const wineNames = JSON.parse(cleanJson);
+    const data = JSON.parse(text);
 
-    return NextResponse.json({ wines: wineNames });
+    return NextResponse.json({ wines: data.wines || [] });
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    return NextResponse.json({ error: "Failed to analyze menu" }, { status: 500 });
+    // Return the actual error message in dev/debug to help the user
+    return NextResponse.json({ 
+      error: "Failed to analyze menu", 
+      details: error.message 
+    }, { status: 500 });
   }
 }

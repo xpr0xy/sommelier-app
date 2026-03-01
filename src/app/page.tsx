@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Camera, Wine, Star, DollarSign, Loader2, AlertCircle, ScanLine } from "lucide-react";
+import { useState, useRef, useMemo } from "react";
+import { Camera, Wine, Star, DollarSign, Loader2, AlertCircle, ScanLine, ArrowUpDown, Filter } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -16,12 +16,20 @@ type WineResult = {
   score: number;
   ratings: string;
   price: string;
+  rawPrice: number; // Added for sorting
 };
+
+type SortOption = "default" | "score-high" | "price-low";
 
 export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<WineResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  
+  // Sorting & Filtering State
+  const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [minScore, setMinScore] = useState<number>(0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,6 +39,8 @@ export default function Home() {
     setIsAnalyzing(true);
     setResults([]);
     setError(null);
+    setSortBy("default"); // Reset filters on new scan
+    setMinScore(0);
 
     const formData = new FormData();
     formData.append("image", file);
@@ -59,13 +69,15 @@ export default function Home() {
         
         const baseScore = 3.8 + (Math.random() * 1.0);
         const baseRatings = Math.floor(Math.random() * 5000) + 100;
+        const rawPrice = Math.floor(Math.random() * 100) + 40;
         
         const wine: WineResult = {
           id: Math.random().toString(36).substring(7),
           name: wineName,
           score: baseScore,
           ratings: (baseRatings / 1000).toFixed(1) + "k",
-          price: "$" + (Math.floor(Math.random() * 100) + 40),
+          price: "$" + rawPrice,
+          rawPrice: rawPrice,
         };
         
         setResults((prev) => [...prev, wine]);
@@ -78,9 +90,21 @@ export default function Home() {
     }
   };
 
+  // Memoized sorted and filtered results
+  const displayResults = useMemo(() => {
+    let filtered = results.filter(w => w.score >= minScore);
+    
+    if (sortBy === "score-high") {
+      filtered.sort((a, b) => b.score - a.score);
+    } else if (sortBy === "price-low") {
+      filtered.sort((a, b) => a.rawPrice - b.rawPrice);
+    }
+    
+    return filtered;
+  }, [results, sortBy, minScore]);
+
   return (
     <main className="max-w-md mx-auto min-h-[100dvh] p-6 flex flex-col relative overflow-hidden bg-black selection:bg-gold/30">
-      {/* Build Verification: v1.1.0 */}
       {/* Background glow effects */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full aspect-square bg-wine-900/40 blur-[140px] rounded-full pointer-events-none" />
 
@@ -122,7 +146,6 @@ export default function Home() {
             isAnalyzing ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10 hover:border-gold/30 active:scale-[0.98]"
           )}
         >
-          {/* Subtle gradient overlay on hover */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
           {isAnalyzing ? (
@@ -160,13 +183,54 @@ export default function Home() {
           </motion.div>
         )}
 
+        {/* Controls Toolbar */}
+        {results.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-wrap items-center justify-between gap-3 p-1"
+          >
+            <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-full p-1">
+              <button 
+                onClick={() => setSortBy("default")}
+                className={cn("px-4 py-1.5 text-xs font-medium rounded-full transition-colors", sortBy === "default" ? "bg-white/10 text-white" : "text-white/50 hover:text-white/80")}
+              >
+                Scan Order
+              </button>
+              <button 
+                onClick={() => setSortBy("score-high")}
+                className={cn("flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-full transition-colors", sortBy === "score-high" ? "bg-white/10 text-gold" : "text-white/50 hover:text-white/80")}
+              >
+                <ArrowUpDown className="w-3 h-3" /> Score
+              </button>
+              <button 
+                onClick={() => setSortBy("price-low")}
+                className={cn("flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-full transition-colors", sortBy === "price-low" ? "bg-white/10 text-gold" : "text-white/50 hover:text-white/80")}
+              >
+                <DollarSign className="w-3 h-3" /> Price
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-full p-1 pr-3">
+               <button 
+                  onClick={() => setMinScore(s => s === 0 ? 4.0 : s === 4.0 ? 4.5 : 0)}
+                  className={cn("flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-full transition-colors", minScore > 0 ? "bg-white/10 text-gold" : "text-white/50")}
+               >
+                 <Filter className="w-3 h-3" /> {minScore === 0 ? "All Scores" : `${minScore}+ Only`}
+               </button>
+            </div>
+          </motion.div>
+        )}
+
         <div className="space-y-4 pb-24">
-          <AnimatePresence initial={false}>
-            {results.map((wine, idx) => (
+          <AnimatePresence initial={false} mode="popLayout">
+            {displayResults.map((wine, idx) => (
               <motion.div
+                layout
                 key={wine.id}
                 initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, scale: 0.95, filter: "blur(5px)" }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
                 className="group bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors flex items-center justify-between"
               >
@@ -194,6 +258,15 @@ export default function Home() {
               </motion.div>
             ))}
           </AnimatePresence>
+          {results.length > 0 && displayResults.length === 0 && (
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               className="text-center py-10 text-white/40 text-sm font-medium tracking-wide"
+             >
+               No wines match your filters.
+             </motion.div>
+          )}
         </div>
       </section>
 

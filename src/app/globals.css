@@ -1,16 +1,6 @@
-@import "tailwindcss";
-
-@theme {
-  --color-wine-50: #fef1f2;
-  --color-wine-100: #fee2e2;
-  --color-wine-500: #991b1b;
-  --color-wine-900: #450a0a;
-  --color-gold: #d4af37;
-  --color-offwhite: #f5f5f7;
-  
-  --font-sans: var(--font-inter);
-  --font-serif: var(--font-playfair);
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --foreground-rgb: 255, 255, 255;

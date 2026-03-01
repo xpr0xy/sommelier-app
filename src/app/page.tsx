@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Camera, Search, Wine, Star, DollarSign, Loader2 } from "lucide-react";
+import { Camera, Wine, Star, DollarSign, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-// Utility for tailwind classes
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -22,6 +21,7 @@ type WineResult = {
 export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<WineResult[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,32 +30,47 @@ export default function Home() {
 
     setIsAnalyzing(true);
     setResults([]);
+    setError(null);
 
-    // ---------------------------------------------------------
-    // ARCHITECT'S NOTE: THIS IS THE INJECTION POINT FOR GEMINI 1.5 FLASH
-    // ---------------------------------------------------------
-    // For Vercel deployment:
-    // 1. Setup an API route (src/app/api/analyze/route.ts)
-    // 2. Pass the file to Gemini Vision
-    // 3. Prompt: "Extract wine names from this menu. Return JSON list of names."
-    // 4. For each name, fetch Vivino score (Scrape or API if available).
-    // ---------------------------------------------------------
+    const formData = new FormData();
+    formData.append("image", file);
 
-    // Simulation Flow
-    const mockWines: WineResult[] = [
-      { id: "1", name: "Silver Oak Alexander Valley Cabernet 2018", score: 4.4, ratings: "4.5k", price: "$85" },
-      { id: "2", name: "Jordan Cabernet Sauvignon 2018", score: 4.3, ratings: "18k", price: "$65" },
-      { id: "3", name: "Cakebread Cellars Chardonnay 2021", score: 4.3, ratings: "1.2k", price: "$45" },
-      { id: "4", name: "Caymus Special Selection 2017", score: 4.8, ratings: "8.9k", price: "$210" },
-      { id: "5", name: "The Prisoner Red Blend 2021", score: 4.2, ratings: "56k", price: "$50" }
-    ];
+    try {
+      // 1. Send to Gemini for Extraction
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
 
-    for (const wine of mockWines) {
-      await new Promise((r) => setTimeout(r, 800)); // Simulate async lookup
-      setResults((prev) => [...prev, wine]);
+      if (!response.ok) throw new Error("Failed to analyze menu");
+
+      const { wines } = await response.json();
+      
+      // 2. Mock individual Vivino lookups for extraction results
+      // In production, we'd loop through names and fetch real Vivino data here.
+      for (const wineName of wines) {
+        await new Promise((r) => setTimeout(r, 600)); // Simulate lookup
+        
+        // Randomize some realistic scores for the extracted names
+        const baseScore = 3.8 + (Math.random() * 1.0);
+        const baseRatings = Math.floor(Math.random() * 5000) + 100;
+        
+        const wine: WineResult = {
+          id: Math.random().toString(36).substring(7),
+          name: wineName,
+          score: baseScore,
+          ratings: (baseRatings / 1000).toFixed(1) + "k",
+          price: "$" + (Math.floor(Math.random() * 100) + 40),
+        };
+        
+        setResults((prev) => [...prev, wine]);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Analysis failed. Check your API key or image quality.");
+    } finally {
+      setIsAnalyzing(false);
     }
-
-    setIsAnalyzing(false);
   };
 
   return (
@@ -100,9 +115,16 @@ export default function Home() {
           />
         </button>
 
+        {error && (
+          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-700 text-sm font-bold">
+            <AlertCircle className="w-5 h-5" />
+            {error}
+          </div>
+        )}
+
         <div className="space-y-4 pb-20">
           <AnimatePresence initial={false}>
-            {results.map((wine, idx) => (
+            {results.map((wine) => (
               <motion.div
                 key={wine.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -110,7 +132,7 @@ export default function Home() {
                 className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 flex items-center justify-between"
               >
                 <div className="flex-1 pr-4">
-                  <h3 className="font-bold text-neutral-900 leading-snug">{wine.name}</h3>
+                  <h3 className="font-bold text-neutral-900 leading-tight">{wine.name}</h3>
                   <div className="flex items-center gap-3 mt-1.5 text-sm text-neutral-500 font-medium">
                     <span className="flex items-center gap-1">
                       <Star className="w-3.5 h-3.5 fill-current text-amber-500" />
@@ -139,7 +161,7 @@ export default function Home() {
       {isAnalyzing && (
         <div className="fixed bottom-0 left-0 w-full p-4 bg-white/80 backdrop-blur-md border-t border-neutral-100 flex items-center justify-center gap-3">
             <Loader2 className="w-5 h-5 animate-spin text-red-800" />
-            <span className="text-sm font-bold text-neutral-700">Checking Vivino cluster...</span>
+            <span className="text-sm font-bold text-neutral-700 uppercase tracking-widest text-[10px]">Vision Engine Active</span>
         </div>
       )}
     </main>

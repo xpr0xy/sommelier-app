@@ -8,6 +8,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "clsx": "latest",
     "framer-motion": "latest",
     "lucide-react": "latest",

@@ -300,14 +300,17 @@ export default function Home() {
         <div className="space-y-4 pb-24">
           <AnimatePresence initial={false} mode="popLayout">
             {displayResults.map((wine) => (
-              <motion.div
+              <motion.a
+                href={`https://www.vivino.com/search/wines?q=${encodeURIComponent(wine.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 layout
                 key={wine.id}
                 initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 exit={{ opacity: 0, scale: 0.95, filter: "blur(5px)" }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
-                className="group bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors flex items-center justify-between"
+                className="group bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/5 hover:border-white/10 hover:bg-white/10 transition-colors flex items-center justify-between cursor-pointer"
               >
                 <div className="flex-1 pr-4">
                   <h3 className="font-serif text-lg text-offwhite leading-tight mb-2 group-hover:text-gold transition-colors">{wine.name}</h3>
@@ -334,7 +337,7 @@ export default function Home() {
                     Score
                   </div>
                 </div>
-              </motion.div>
+              </motion.a>
             ))}
           </AnimatePresence>
           {results.length > 0 && displayResults.length === 0 && (

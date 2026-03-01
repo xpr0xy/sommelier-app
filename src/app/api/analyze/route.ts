@@ -15,9 +15,9 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Using Gemini 2.0 Flash (latest stable-capable beta model)
+    // Using Gemini 2.5 Flash (latest stable model for new API keys)
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       generationConfig: {
         responseMimeType: "application/json",
       }

@@ -129,14 +129,15 @@ export default function Home() {
           <span className="mt-5 font-serif text-lg tracking-wide text-white/80 group-hover:text-white transition-colors duration-500">
             {isAnalyzing ? "Extracting..." : "Scan Menu"}
           </span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleUpload}
-          />
         </motion.button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleUpload}
+        />
 
         {error && (
           <motion.div 

@@ -13,6 +13,11 @@ module.exports = {
           900: '#450a0a',
         },
         gold: '#d4af37',
+        offwhite: '#f5f5f7',
+      },
+      fontFamily: {
+        sans: ['var(--font-inter)'],
+        serif: ['var(--font-playfair)'],
       }
     },
   },

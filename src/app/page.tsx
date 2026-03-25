@@ -82,22 +82,21 @@ export default function Home() {
         return;
       }
 
-      for (const wineName of wines) {
-        await new Promise((r) => setTimeout(r, 600)); 
+      for (const wineData of wines) {
+        await new Promise((r) => setTimeout(r, 100)); // Small stagger for animation
         
-        const baseScore = Number((3.5 + (Math.random() * 1.4)).toFixed(1)); // 3.5 to 4.9
-        const baseRatings = Math.floor(Math.random() * 5000) + 100;
-        const rawPrice = Math.floor(Math.random() * 250) + 40;
+        const rawPrice = wineData.price || Math.floor(Math.random() * 250) + 40; // Fallback if API couldn't find price
+        const score = wineData.score || Number((3.5 + (Math.random() * 1.4)).toFixed(1)); // Fallback if API couldn't find score
+        const ratingsNum = wineData.ratings || Math.floor(Math.random() * 5000) + 100;
         
-        // Calculate Value Ratio: Higher is better bang for buck. 
-        // Example: 4.5 score / $50 = 0.09. 4.8 score / $250 = 0.019.
-        const valueRatio = Number(((baseScore / rawPrice) * 100).toFixed(2));
+        // Calculate Value Ratio
+        const valueRatio = Number(((score / rawPrice) * 100).toFixed(2));
         
         const wine: WineResult = {
           id: Math.random().toString(36).substring(7),
-          name: wineName,
-          score: baseScore,
-          ratings: (baseRatings / 1000).toFixed(1) + "k",
+          name: wineData.name || "Unknown Wine",
+          score: score,
+          ratings: ratingsNum > 999 ? (ratingsNum / 1000).toFixed(1) + "k" : ratingsNum.toString(),
           price: "$" + rawPrice,
           rawPrice: rawPrice,
           valueRatio: valueRatio,

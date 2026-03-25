@@ -24,12 +24,21 @@ export async function POST(req: NextRequest) {
     });
 
     const prompt = `
-      You are an expert sommelier AI. Extract a list of specific wine names from this menu image. 
-      CRITICAL INSTRUCTION: You MUST extract and include the vintage (year) for every single wine if it is visible anywhere on the page (check the edges of the columns or under the names). 
-      If no year is listed, explicitly append "NV" (Non-Vintage) to the name.
-      Include the producer/winery, the specific cuvée/blend, the grape varietal, and the region if available.
-      Return a JSON object with a key "wines" containing an array of strings.
-      Example: {"wines": ["Silver Oak Alexander Valley Cabernet Sauvignon 2018", "Krug Grande Cuvée Brut Champagne NV"]}
+      You are an expert sommelier AI with web search capabilities.
+      
+      Task 1: Extract a list of specific wine names from this menu image. 
+      CRITICAL INSTRUCTION: You MUST extract and include the vintage (year) for every single wine if it is visible. If no year is listed, explicitly append "NV" (Non-Vintage) to the name. Include the producer, cuvée, and grape varietal.
+
+      Task 2: For each wine you find, search for its Vivino profile or general market data to estimate its Vivino score (e.g. 4.3), its number of ratings, and its average market price in USD.
+
+      Return a JSON object with a key "wines" containing an array of objects.
+      Each object MUST have the following schema exactly:
+      {
+        "name": "Full string name of the wine with vintage",
+        "score": 4.5, // float between 1.0 and 5.0. 0.0 if totally unknown.
+        "ratings": 1500, // integer. 0 if unknown.
+        "price": 120 // integer. average retail price in USD. 0 if unknown.
+      }
     `;
 
     const result = await model.generateContent([

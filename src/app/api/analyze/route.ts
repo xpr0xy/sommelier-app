@@ -24,9 +24,12 @@ export async function POST(req: NextRequest) {
     });
 
     const prompt = `
-      Extract a list of specific wine names from this menu image. 
+      You are an expert sommelier AI. Extract a list of specific wine names from this menu image. 
+      CRITICAL INSTRUCTION: You MUST extract and include the vintage (year) for every single wine if it is visible anywhere on the page (check the edges of the columns or under the names). 
+      If no year is listed, explicitly append "NV" (Non-Vintage) to the name.
+      Include the producer/winery, the specific cuvée/blend, the grape varietal, and the region if available.
       Return a JSON object with a key "wines" containing an array of strings.
-      Example: {"wines": ["Silver Oak Alexander Valley Cabernet 2018", "Jordan Cabernet Sauvignon 2019"]}
+      Example: {"wines": ["Silver Oak Alexander Valley Cabernet Sauvignon 2018", "Krug Grande Cuvée Brut Champagne NV"]}
     `;
 
     const result = await model.generateContent([

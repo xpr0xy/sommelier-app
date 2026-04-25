@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
-import { Camera, Wine, Star, DollarSign, Loader2, AlertCircle, ScanLine, ArrowUp, ArrowDown, Filter, ChevronDown, SlidersHorizontal, Percent } from "lucide-react";
+import {
+  Camera,
+  Wine,
+  Star,
+  DollarSign,
+  Loader2,
+  AlertCircle,
+  ScanLine,
+  ArrowUp,
+  ArrowDown,
+  SlidersHorizontal,
+  Percent,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -13,52 +25,84 @@ function cn(...inputs: ClassValue[]) {
 type WineResult = {
   id: string;
   name: string;
-  score: number;
+  score: number | null;
   ratings: string;
   price: string;
-  rawPrice: number;
-  valueRatio: number; // Score to Price ratio
+  rawPrice: number | null;
+  valueRatio: number | null;
 };
 
 type SortField = "default" | "score" | "price" | "value";
 type SortDirection = "asc" | "desc";
 
+function formatRatings(ratings: number | null) {
+  if (!ratings || ratings <= 0) return "n/a";
+  return ratings > 999 ? `${(ratings / 1000).toFixed(1)}k` : ratings.toString();
+}
+
+function formatPrice(price: number | null) {
+  if (!price || price <= 0) return "n/a";
+  return `$${price}`;
+}
+
+function formatScore(score: number | null) {
+  if (!score || score <= 0) return "n/a";
+  return score.toFixed(1);
+}
+
+function formatValueRatio(valueRatio: number | null) {
+  if (valueRatio === null) return "n/a";
+  return `${valueRatio.toFixed(2)} Val`;
+}
+
 export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<WineResult[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
-  // Advanced Controls State
+
   const [showFilters, setShowFilters] = useState(false);
   const [sortField, setSortField] = useState<SortField>("default");
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
   const [minScore, setMinScore] = useState<number>(0);
-  const [maxPrice, setMaxPrice] = useState<number>(1000);
+  const [maxPrice, setMaxPrice] = useState<number | null>(null);
 
   const fileInputRefCamera = useRef<HTMLInputElement>(null);
   const fileInputRefUpload = useRef<HTMLInputElement>(null);
 
+  const knownPrices = useMemo(
+    () => results.map((wine) => wine.rawPrice).filter((price): price is number => price !== null),
+    [results]
+  );
+
+  const priceSliderMax = useMemo(() => {
+    if (knownPrices.length === 0) return 1000;
+    return Math.max(...knownPrices, 100);
+  }, [knownPrices]);
+
+  const hasKnownPrices = knownPrices.length > 0;
+
   const handleSortToggle = (field: SortField) => {
     if (sortField === field) {
-      // Toggle direction if clicking the same field
-      setSortDir(prev => prev === "asc" ? "desc" : "asc");
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
-      // Set new field and default direction (desc for score/value, asc for price)
       setSortField(field);
       setSortDir(field === "price" ? "asc" : "desc");
     }
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
 
     setIsAnalyzing(true);
     setResults([]);
     setError(null);
+    setShowFilters(false);
     setSortField("default");
+    setSortDir("desc");
     setMinScore(0);
-    setMaxPrice(1000);
+    setMaxPrice(null);
 
     const formData = new FormData();
     formData.append("image", file);
@@ -76,59 +120,62 @@ export default function Home() {
       }
 
       const { wines } = data;
-      
+
       if (!wines || wines.length === 0) {
         setError("No wines detected in the image. Try a clearer photo.");
         return;
       }
 
       for (const wineData of wines) {
-        await new Promise((r) => setTimeout(r, 100)); // Small stagger for animation
-        
-        const rawPrice = wineData.price || Math.floor(Math.random() * 250) + 40; // Fallback if API couldn't find price
-        const score = wineData.score || Number((3.5 + (Math.random() * 1.4)).toFixed(1)); // Fallback if API couldn't find score
-        const ratingsNum = wineData.ratings || Math.floor(Math.random() * 5000) + 100;
-        
-        // Calculate Value Ratio
-        const valueRatio = Number(((score / rawPrice) * 100).toFixed(2));
-        
+        await new Promise((r) => setTimeout(r, 100));
+
+        const rawPrice = typeof wineData.price === "number" && wineData.price > 0 ? wineData.price : null;
+        const score = typeof wineData.score === "number" && wineData.score > 0 ? wineData.score : null;
+        const ratingsNum = typeof wineData.ratings === "number" && wineData.ratings > 0 ? wineData.ratings : null;
+        const valueRatio =
+          score !== null && rawPrice !== null ? Number(((score / rawPrice) * 100).toFixed(2)) : null;
+
         const wine: WineResult = {
-          id: Math.random().toString(36).substring(7),
+          id: `${wineData.name || "wine"}-${Math.random().toString(36).slice(2, 8)}`,
           name: wineData.name || "Unknown Wine",
-          score: score,
-          ratings: ratingsNum > 999 ? (ratingsNum / 1000).toFixed(1) + "k" : ratingsNum.toString(),
-          price: "$" + rawPrice,
-          rawPrice: rawPrice,
-          valueRatio: valueRatio,
+          score,
+          ratings: formatRatings(ratingsNum),
+          price: formatPrice(rawPrice),
+          rawPrice,
+          valueRatio,
         };
-        
+
         setResults((prev) => [...prev, wine]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "An unexpected error occurred.");
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
       setIsAnalyzing(false);
+      input.value = "";
     }
   };
 
   const displayResults = useMemo(() => {
-    let filtered = results.filter(w => w.score >= minScore && w.rawPrice <= maxPrice);
-    
-    if (sortField !== "default") {
-      filtered.sort((a, b) => {
-        let valA = a[sortField === "score" ? "score" : sortField === "price" ? "rawPrice" : "valueRatio"];
-        let valB = b[sortField === "score" ? "score" : sortField === "price" ? "rawPrice" : "valueRatio"];
-        
-        if (sortDir === "asc") {
-          return valA > valB ? 1 : -1;
-        } else {
-          return valA < valB ? 1 : -1;
-        }
-      });
-    }
-    
-    return filtered;
+    const filtered = results.filter((wine) => {
+      const passesScore = minScore > 0 ? wine.score !== null && wine.score >= minScore : true;
+      const passesPrice = maxPrice !== null ? wine.rawPrice !== null && wine.rawPrice <= maxPrice : true;
+      return passesScore && passesPrice;
+    });
+
+    if (sortField === "default") return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const valA = a[sortField === "score" ? "score" : sortField === "price" ? "rawPrice" : "valueRatio"];
+      const valB = b[sortField === "score" ? "score" : sortField === "price" ? "rawPrice" : "valueRatio"];
+
+      if (valA === null && valB === null) return 0;
+      if (valA === null) return 1;
+      if (valB === null) return -1;
+
+      if (sortDir === "asc") return valA > valB ? 1 : valA < valB ? -1 : 0;
+      return valA < valB ? 1 : valA > valB ? -1 : 0;
+    });
   }, [results, sortField, sortDir, minScore, maxPrice]);
 
   return (
@@ -136,14 +183,14 @@ export default function Home() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full aspect-square bg-wine-900/40 blur-[140px] rounded-full pointer-events-none" />
 
       <header className="py-12 text-center relative z-10 flex flex-col items-center">
-        <motion.div 
+        <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           className="inline-flex items-center justify-center p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full mb-6 shadow-2xl"
         >
           <Wine className="w-8 h-8 text-gold" strokeWidth={1.5} />
         </motion.div>
-        <motion.h1 
+        <motion.h1
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
@@ -151,7 +198,7 @@ export default function Home() {
         >
           Sommelier
         </motion.h1>
-        <motion.p 
+        <motion.p
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -175,9 +222,9 @@ export default function Home() {
             )}
           >
             <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            
+
             {isAnalyzing ? (
-              <motion.div 
+              <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
                 className="relative"
@@ -219,7 +266,7 @@ export default function Home() {
           className="hidden"
           onChange={handleUpload}
         />
-        
+
         <input
           ref={fileInputRefUpload}
           type="file"
@@ -229,7 +276,7 @@ export default function Home() {
         />
 
         {error && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="flex items-center gap-3 p-4 bg-red-950/50 border border-red-900/50 rounded-2xl text-red-200 text-sm font-light backdrop-blur-md"
@@ -239,52 +286,52 @@ export default function Home() {
           </motion.div>
         )}
 
-        {/* Advanced Control Panel */}
         {results.length > 0 && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col gap-3 p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl"
           >
-            {/* Sort Row */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-white/40 uppercase tracking-widest">Sort By</span>
-              <button 
+              <button
                 onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center gap-1.5 text-xs text-gold hover:text-gold/80 transition-colors px-2 py-1 bg-white/5 rounded-full"
               >
                 <SlidersHorizontal className="w-3 h-3" /> Filters
               </button>
             </div>
-            
+
             <div className="flex flex-wrap gap-2">
-              <button 
+              <button
                 onClick={() => handleSortToggle("score")}
                 className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors border", sortField === "score" ? "bg-gold/20 text-gold border-gold/30" : "bg-black/20 text-white/60 border-white/5 hover:bg-white/10")}
               >
                 Score {sortField === "score" && (sortDir === "desc" ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />)}
               </button>
-              <button 
+              <button
                 onClick={() => handleSortToggle("price")}
                 className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors border", sortField === "price" ? "bg-gold/20 text-gold border-gold/30" : "bg-black/20 text-white/60 border-white/5 hover:bg-white/10")}
               >
                 Price {sortField === "price" && (sortDir === "desc" ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />)}
               </button>
-              <button 
+              <button
                 onClick={() => handleSortToggle("value")}
                 className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors border", sortField === "value" ? "bg-gold/20 text-gold border-gold/30" : "bg-black/20 text-white/60 border-white/5 hover:bg-white/10")}
               >
                 Value {sortField === "value" && (sortDir === "desc" ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />)}
               </button>
-              <button 
-                onClick={() => setSortField("default")}
+              <button
+                onClick={() => {
+                  setSortField("default");
+                  setSortDir("desc");
+                }}
                 className={cn("px-3 py-1.5 text-xs font-medium rounded-full transition-colors border", sortField === "default" ? "bg-white/10 text-white border-white/20" : "bg-transparent text-white/40 border-transparent hover:text-white")}
               >
                 Clear
               </button>
             </div>
 
-            {/* Expandable Filters */}
             <AnimatePresence>
               {showFilters && (
                 <motion.div
@@ -298,10 +345,12 @@ export default function Home() {
                       <span>Min Score: {minScore.toFixed(1)}</span>
                       <span className="text-gold">{minScore > 0 ? "Filtered" : "Any"}</span>
                     </div>
-                    <input 
-                      type="range" 
-                      min="0" max="4.8" step="0.1" 
-                      value={minScore} 
+                    <input
+                      type="range"
+                      min="0"
+                      max="4.8"
+                      step="0.1"
+                      value={minScore}
                       onChange={(e) => setMinScore(parseFloat(e.target.value))}
                       className="w-full accent-gold bg-white/10 rounded-full h-1 appearance-none outline-none"
                     />
@@ -309,16 +358,22 @@ export default function Home() {
 
                   <div className="flex flex-col gap-2 pb-1">
                     <div className="flex justify-between items-center text-xs text-white/60">
-                      <span>Max Price: {maxPrice === 1000 ? "Any" : "$" + maxPrice}</span>
-                      <span className="text-gold">{maxPrice < 1000 ? "Filtered" : "Any"}</span>
+                      <span>Max Price: {maxPrice === null ? "Any" : `$${maxPrice}`}</span>
+                      <span className="text-gold">{maxPrice !== null ? "Filtered" : "Any"}</span>
                     </div>
-                    <input 
-                      type="range" 
-                      min="30" max="1000" step="10" 
-                      value={maxPrice} 
+                    <input
+                      type="range"
+                      min="30"
+                      max={priceSliderMax}
+                      step="10"
+                      value={maxPrice ?? priceSliderMax}
+                      disabled={!hasKnownPrices}
                       onChange={(e) => setMaxPrice(parseInt(e.target.value))}
-                      className="w-full accent-gold bg-white/10 rounded-full h-1 appearance-none outline-none"
+                      className="w-full accent-gold bg-white/10 rounded-full h-1 appearance-none outline-none disabled:opacity-30"
                     />
+                    {!hasKnownPrices && (
+                      <p className="text-[11px] text-white/35">No confident price data returned, so price filtering is disabled.</p>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -354,14 +409,12 @@ export default function Home() {
                     </span>
                     <span className="flex items-center gap-1 border-l border-white/10 pl-3 text-gold/60" title="Value Ratio (Score ÷ Price * 100)">
                       <Percent className="w-3 h-3" />
-                      {wine.valueRatio} Val
+                      {formatValueRatio(wine.valueRatio)}
                     </span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end justify-center">
-                  <div className="text-3xl font-serif text-gold leading-none">
-                    {wine.score.toFixed(1)}
-                  </div>
+                  <div className="text-3xl font-serif text-gold leading-none">{formatScore(wine.score)}</div>
                   <div className="text-[9px] font-sans text-white/30 tracking-[0.2em] uppercase mt-2">
                     Score
                   </div>
@@ -370,27 +423,27 @@ export default function Home() {
             ))}
           </AnimatePresence>
           {results.length > 0 && displayResults.length === 0 && (
-             <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               className="text-center py-10 text-white/40 text-sm font-medium tracking-wide border border-dashed border-white/10 rounded-2xl"
-             >
-               No wines match your advanced filters.
-             </motion.div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-10 text-white/40 text-sm font-medium tracking-wide border border-dashed border-white/10 rounded-2xl"
+            >
+              No wines match your advanced filters.
+            </motion.div>
           )}
         </div>
       </section>
 
       <AnimatePresence>
         {isAnalyzing && (
-          <motion.div 
+          <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             className="fixed bottom-0 left-0 w-full p-6 bg-black/60 backdrop-blur-2xl border-t border-white/5 flex items-center justify-center gap-3 z-50"
           >
-              <Loader2 className="w-4 h-4 animate-spin text-gold" />
-              <span className="text-xs font-medium text-white/60 uppercase tracking-[0.15em]">Neural Engine Processing</span>
+            <Loader2 className="w-4 h-4 animate-spin text-gold" />
+            <span className="text-xs font-medium text-white/60 uppercase tracking-[0.15em]">Neural Engine Processing</span>
           </motion.div>
         )}
       </AnimatePresence>
